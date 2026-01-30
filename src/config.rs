@@ -51,6 +51,8 @@ pub enum TransportType {
     Noise,
     #[serde(rename = "websocket")]
     Websocket,
+    #[serde(rename = "shadowtls_noise")]
+    ShadowTlsNoise,
 }
 
 /// Per service config
@@ -143,6 +145,40 @@ pub struct WebsocketConfig {
     pub tls: bool,
 }
 
+fn default_shadowtls_noise_pattern() -> String {
+    String::from("Noise_NK_25519_ChaChaPoly_BLAKE2s")
+}
+
+fn default_camouflage_domain() -> String {
+    String::from("www.microsoft.com")
+}
+
+/// ShadowTLS-Noise configuration
+/// Wraps Noise protocol inside TLS for DPI evasion
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct ShadowTlsNoiseConfig {
+    /// Domain to camouflage as (e.g., "www.microsoft.com")
+    #[serde(default = "default_camouflage_domain")]
+    pub camouflage_domain: String,
+
+    /// TLS certificate path (server only, PEM format)
+    pub tls_cert: Option<String>,
+
+    /// TLS private key path (server only, PEM format)
+    pub tls_key: Option<String>,
+
+    /// Noise protocol pattern (default: Noise_NK_25519_ChaChaPoly_BLAKE2s)
+    #[serde(default = "default_shadowtls_noise_pattern")]
+    pub noise_pattern: String,
+
+    /// Local Noise private key (base64, server)
+    pub local_private_key: Option<MaskedString>,
+
+    /// Remote Noise public key (base64, client)
+    pub remote_public_key: Option<String>,
+}
+
 fn default_nodelay() -> bool {
     DEFAULT_NODELAY
 }
@@ -188,6 +224,7 @@ pub struct TransportConfig {
     pub tls: Option<TlsConfig>,
     pub noise: Option<NoiseConfig>,
     pub websocket: Option<WebsocketConfig>,
+    pub shadowtls_noise: Option<ShadowTlsNoiseConfig>,
 }
 
 fn default_heartbeat_timeout() -> u64 {
@@ -323,6 +360,20 @@ impl Config {
                 Ok(())
             }
             TransportType::Websocket => Ok(()),
+            TransportType::ShadowTlsNoise => {
+                let shadowtls_config = config
+                    .shadowtls_noise
+                    .as_ref()
+                    .ok_or_else(|| anyhow!("Missing shadowtls_noise configuration"))?;
+
+                // Server needs TLS cert and key
+                if is_server {
+                    if shadowtls_config.tls_cert.is_none() || shadowtls_config.tls_key.is_none() {
+                        bail!("ShadowTLS-Noise server requires `tls_cert` and `tls_key`");
+                    }
+                }
+                Ok(())
+            }
         }
     }
 

@@ -18,6 +18,7 @@ default = [
     "noise",
     "websocket-native-tls",
     "hot-reload",
+    "shadowtls-noise",
 ]
 
 # Run as a server
@@ -55,6 +56,15 @@ websocket-rustls = [
 
 # Configuration hot-reload support
 hot-reload = ["notify"]
+
+# ShadowTLS-Noise transport (wraps Noise in TLS for DPI evasion)
+shadowtls-noise = [
+    "tokio-rustls",
+    "rustls-pemfile",
+    "webpki-roots",
+    "snowstorm",
+    "base64",
+]
 
 # Default feature releasing embedded devices
 # Cross-compiling with tls is hard. So we don't :(
@@ -125,6 +135,7 @@ tokio-rustls = { version = "0.25", optional = true }
 rustls-native-certs = { version = "0.7", optional = true }
 rustls-pemfile = { version = "2.0", optional = true }
 p12 = { version = "0.6.3", optional = true }
+webpki-roots = { version = "0.26", optional = true }
 
 [target.'cfg(target_env = "musl")'.dependencies]
 openssl = { version = "0.10", features = ["vendored"], optional = true }

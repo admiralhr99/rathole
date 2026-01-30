@@ -33,6 +33,7 @@ rathole, like [frp](https://github.com/fatedier/frp) and [ngrok](https://github.
 - **High Performance** Much higher throughput can be achieved than frp, and more stable when handling a large volume of connections. See [Benchmark](#benchmark)
 - **Low Resource Consumption** Consumes much fewer memory than similar tools. See [Benchmark](#benchmark). [The binary can be](docs/build-guide.md) **as small as ~500KiB** to fit the constraints of devices, like embedded devices as routers.
 - **Security** Tokens of services are mandatory and service-wise. The server and clients are responsible for their own configs. With the optional Noise Protocol, encryption can be configured at ease. No need to create a self-signed certificate! TLS is also supported.
+- **ShadowTLS-Noise** Wraps Noise protocol inside TLS for DPI evasion. Designed for censored networks (Iran, China, Russia). Traffic appears as legitimate HTTPS to deep packet inspection systems.
 - **Hot Reload** Services can be added or removed dynamically by hot-reloading the configuration file. HTTP API is WIP.
 
 ## Quickstart
@@ -111,7 +112,7 @@ heartbeat_timeout = 40 # Optional. Set to 0 to disable the application-layer hea
 retry_interval = 1 # Optional. The interval between retry to connect to the server. Default: 1 second
 
 [client.transport] # The whole block is optional. Specify which transport to use
-type = "tcp" # Optional. Possible values: ["tcp", "tls", "noise"]. Default: "tcp"
+type = "tcp" # Optional. Possible values: ["tcp", "tls", "noise", "shadowtls_noise"]. Default: "tcp"
 
 [client.transport.tcp] # Optional. Also affects `noise` and `tls`
 proxy = "socks5://user:passwd@127.0.0.1:1080" # Optional. The proxy used to connect to the server. `http` and `socks5` is supported.
@@ -130,6 +131,11 @@ remote_public_key = "key_encoded_in_base64" # Optional
 
 [client.transport.websocket] # Necessary if `type` is "websocket"
 tls = true # If `true` then it will use settings in `client.transport.tls`
+
+[client.transport.shadowtls_noise] # ShadowTLS-Noise for DPI evasion. See `docs/transport.md`
+camouflage_domain = "www.microsoft.com" # Domain to camouflage as
+noise_pattern = "Noise_NK_25519_ChaChaPoly_BLAKE2s" # Optional. Default value as shown
+remote_public_key = "key_encoded_in_base64" # Server's public key
 
 [client.services.service1] # A service that needs forwarding. The name `service1` can change arbitrarily, as long as identical to the name in the server's configuration
 type = "tcp" # Optional. The protocol that needs forwarding. Possible values: ["tcp", "udp"]. Default: "tcp"
@@ -165,6 +171,13 @@ remote_public_key = "key_encoded_in_base64"
 
 [server.transport.websocket] # Necessary if `type` is "websocket"
 tls = true # If `true` then it will use settings in `server.transport.tls`
+
+[server.transport.shadowtls_noise] # ShadowTLS-Noise for DPI evasion. See `docs/transport.md`
+tls_cert = "/path/to/fullchain.pem" # TLS certificate (PEM format, use Let's Encrypt)
+tls_key = "/path/to/privkey.pem" # TLS private key (PEM format)
+camouflage_domain = "www.microsoft.com" # Domain to camouflage as
+noise_pattern = "Noise_NK_25519_ChaChaPoly_BLAKE2s" # Optional. Default value as shown
+local_private_key = "key_encoded_in_base64" # Server's private key
 
 [server.services.service1] # The service name must be identical to the client side
 type = "tcp" # Optional. Same as the client `[client.services.X.type]

@@ -138,3 +138,123 @@ To find out which pattern to use, refer to:
 - [8. Protocol names and modifiers](https://noiseprotocol.org/noise.html#protocol-names-and-modifiers)
 
 Note that PSKs are not supported currently. Free to open an issue if you need it.
+
+## ShadowTLS-Noise
+
+ShadowTLS-Noise is a transport layer specifically designed to evade Deep Packet Inspection (DPI) systems used in countries like Iran, China, and Russia. It wraps the Noise protocol inside TLS, making traffic indistinguishable from legitimate HTTPS connections.
+
+### How It Works
+
+1. **TLS Handshake**: Client performs a real TLS handshake with the server
+2. **Camouflage**: DPI sees standard HTTPS traffic with valid certificates
+3. **Noise Inside**: The Noise protocol handshake and all data is tunneled inside the TLS connection
+4. **Indistinguishable**: Traffic appears identical to normal HTTPS connections
+
+### Why ShadowTLS-Noise?
+
+Standard Noise protocol is detected by DPI via:
+- Entropy analysis (fully encrypted traffic flagged)
+- Fixed packet structure fingerprinting
+- Lack of TLS signatures
+
+ShadowTLS-Noise solves this:
+- Valid TLS fingerprint and headers
+- Whitelisted SNI (Server Name Indication)
+- Cannot block without breaking legitimate HTTPS services
+
+### Configuration
+
+#### Client Side
+
+```toml
+[client.transport]
+type = "shadowtls_noise"
+
+[client.transport.shadowtls_noise]
+# Domain to camouflage as - DPI sees connection to this domain
+camouflage_domain = "www.microsoft.com"
+
+# Noise protocol pattern
+noise_pattern = "Noise_NK_25519_ChaChaPoly_BLAKE2s"
+
+# Server's public key (base64)
+remote_public_key = "SERVER_PUBLIC_KEY_HERE"
+```
+
+#### Server Side (requires valid TLS certificate)
+
+```toml
+[server.transport]
+type = "shadowtls_noise"
+
+[server.transport.shadowtls_noise]
+# TLS certificate (use Let's Encrypt for a valid certificate)
+tls_cert = "/etc/letsencrypt/live/your-domain.com/fullchain.pem"
+tls_key = "/etc/letsencrypt/live/your-domain.com/privkey.pem"
+
+# Camouflage domain
+camouflage_domain = "www.microsoft.com"
+
+# Noise protocol pattern (must match client)
+noise_pattern = "Noise_NK_25519_ChaChaPoly_BLAKE2s"
+
+# Server's private key (base64)
+local_private_key = "SERVER_PRIVATE_KEY_HERE"
+```
+
+### Recommended Camouflage Domains
+
+For maximum stealth, use domains that are:
+- Whitelisted in your target country
+- Have high traffic volume
+- Use HTTPS by default
+
+Recommended domains:
+- `www.microsoft.com` - Most stable, globally whitelisted
+- `www.bing.com` - Microsoft property
+- `dl.google.com` - Google downloads
+- `www.apple.com` - High traffic
+- `www.cloudflare.com` - CDN provider
+
+### Key Generation
+
+Use the same `rathole --genkey` command as for regular Noise:
+
+```bash
+$ rathole --genkey
+Private Key:
+cQ/vwIqNPJZmuM/OikglzBo/+jlYGrOt9i0k5h5vn1Q=
+
+Public Key:
+GQYTKSbWLBUSZiGfdWPSgek9yoOuaiwGD/GIX8Z1kkE=
+```
+
+### TLS Certificate Setup
+
+The server requires a valid TLS certificate. The easiest way is to use Let's Encrypt:
+
+```bash
+# Install certbot
+apt install certbot
+
+# Get a certificate
+certbot certonly --standalone -d your-domain.com
+
+# Certificates will be at:
+# /etc/letsencrypt/live/your-domain.com/fullchain.pem
+# /etc/letsencrypt/live/your-domain.com/privkey.pem
+```
+
+### Security Notes
+
+1. **Use Port 443**: For maximum stealth, run your server on port 443 (standard HTTPS)
+2. **Valid Certificate Required**: Self-signed certificates may be flagged by DPI
+3. **Keep Keys Secret**: Never share your private keys
+4. **Test Before Deploying**: Verify traffic looks like HTTPS using packet capture tools
+
+### Performance
+
+ShadowTLS-Noise has minimal overhead:
+- TLS handshake: ~2 RTT additional latency
+- Per-packet: ~5 bytes TLS record header
+- Throughput: 95%+ of raw TCP

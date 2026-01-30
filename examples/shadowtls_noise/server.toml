@@ -1,0 +1,38 @@
+# ShadowTLS-Noise Server Configuration
+# This wraps Noise protocol inside TLS to evade Deep Packet Inspection (DPI)
+# Requires a valid TLS certificate (use Let's Encrypt)
+
+[server]
+bind_addr = "0.0.0.0:443"  # Listen on HTTPS port for maximum stealth
+default_token = "use_a_secret_that_only_you_know"
+heartbeat_interval = 30
+
+[server.transport]
+type = "shadowtls_noise"
+
+[server.transport.shadowtls_noise]
+# TLS certificate (use Let's Encrypt for a valid certificate)
+# Run: certbot certonly --standalone -d your-domain.com
+tls_cert = "/etc/letsencrypt/live/your-domain.com/fullchain.pem"
+tls_key = "/etc/letsencrypt/live/your-domain.com/privkey.pem"
+
+# Camouflage domain (for logging/debugging)
+camouflage_domain = "www.microsoft.com"
+
+# Noise protocol pattern (must match client)
+noise_pattern = "Noise_NK_25519_ChaChaPoly_BLAKE2s"
+
+# Server's private key (base64) - generate with `rathole --genkey`
+local_private_key = "SERVER_PRIVATE_KEY_BASE64_HERE"
+
+# Example service: expose SSH on port 2222
+[server.services.ssh]
+token = "ssh_service_token"
+bind_addr = "0.0.0.0:2222"
+type = "tcp"
+
+# Example service: expose HTTP on port 8080
+[server.services.web]
+token = "web_service_token"
+bind_addr = "0.0.0.0:8080"
+type = "tcp"

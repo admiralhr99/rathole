@@ -27,6 +27,8 @@ use crate::transport::NoiseTransport;
 use crate::transport::TlsTransport;
 #[cfg(any(feature = "websocket-native-tls", feature = "websocket-rustls"))]
 use crate::transport::WebsocketTransport;
+#[cfg(feature = "shadowtls-noise")]
+use crate::transport::ShadowTlsNoiseTransport;
 
 use crate::constants::{run_control_chan_backoff, UDP_BUFFER_SIZE, UDP_SENDQ_SIZE, UDP_TIMEOUT};
 
@@ -73,6 +75,15 @@ pub async fn run_client(
             }
             #[cfg(not(any(feature = "websocket-native-tls", feature = "websocket-rustls")))]
             crate::helper::feature_neither_compile("websocket-native-tls", "websocket-rustls")
+        }
+        TransportType::ShadowTlsNoise => {
+            #[cfg(feature = "shadowtls-noise")]
+            {
+                let mut client = Client::<ShadowTlsNoiseTransport>::from(config).await?;
+                client.run(shutdown_rx, update_rx).await
+            }
+            #[cfg(not(feature = "shadowtls-noise"))]
+            crate::helper::feature_not_compile("shadowtls-noise")
         }
     }
 }

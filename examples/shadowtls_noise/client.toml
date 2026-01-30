@@ -1,0 +1,35 @@
+# ShadowTLS-Noise Client Configuration
+# This wraps Noise protocol inside TLS to evade Deep Packet Inspection (DPI)
+# Traffic appears as legitimate HTTPS to censorship systems
+
+[client]
+remote_addr = "your-server.com:443"  # Your server address (use port 443 for stealth)
+default_token = "use_a_secret_that_only_you_know"
+heartbeat_timeout = 40
+retry_interval = 1
+
+[client.transport]
+type = "shadowtls_noise"
+
+[client.transport.shadowtls_noise]
+# Domain to camouflage as - DPI sees connection to this domain
+# Recommended domains for Iran: www.microsoft.com, www.bing.com, dl.google.com
+camouflage_domain = "www.microsoft.com"
+
+# Noise protocol pattern (NK = server auth only, XX = mutual auth)
+noise_pattern = "Noise_NK_25519_ChaChaPoly_BLAKE2s"
+
+# Server's public key (base64) - get this from `rathole --genkey`
+remote_public_key = "SERVER_PUBLIC_KEY_BASE64_HERE"
+
+# Example service: forward local SSH
+[client.services.ssh]
+token = "ssh_service_token"
+local_addr = "127.0.0.1:22"
+type = "tcp"
+
+# Example service: forward local HTTP
+[client.services.web]
+token = "web_service_token"
+local_addr = "127.0.0.1:8080"
+type = "tcp"
