@@ -1,0 +1,103 @@
+# examples/shadowtls_config.toml
+# ShadowTLS-Noise Configuration for Iran-Germany Tunnel
+# This wraps Noise protocol inside TLS to evade Iran's DPI
+
+# ============================================================================
+# CLIENT SIDE (Iran)
+# ============================================================================
+[client]
+remote_addr = "your-german-server.com:443"  # Your VPS in Germany
+default_token = "your_secure_token_here"
+heartbeat_timeout = 40
+retry_interval = 1
+
+[client.transport]
+type = "shadowtls_noise"  # NEW transport type
+
+[client.transport.shadowtls_noise]
+# Domain to camouflage as (DPI sees connection to this domain)
+camouflage_domain = "www.microsoft.com"  # or "www.bing.com", "dl.google.com"
+
+# Noise protocol configuration
+noise_pattern = "Noise_NK_25519_ChaChaPoly_BLAKE2s"  # Default, recommended
+remote_public_key = "YOUR_SERVER_PUBLIC_KEY_BASE64"  # From server keygen
+
+# Optional: Use Noise_XX for 3-message handshake (harder to fingerprint)
+# noise_pattern = "Noise_XX_25519_ChaChaPoly_BLAKE2s"
+
+[client.services.ssh]
+token = "ssh_service_token"
+local_addr = "127.0.0.1:22"  # Your local SSH service
+type = "tcp"
+
+[client.services.http]
+token = "http_service_token"  
+local_addr = "127.0.0.1:8080"
+type = "tcp"
+
+# ============================================================================
+# SERVER SIDE (Germany)
+# ============================================================================
+[server]
+bind_addr = "0.0.0.0:443"  # Listen on 443 (HTTPS port)
+default_token = "your_secure_token_here"
+heartbeat_interval = 30
+
+[server.transport]
+type = "shadowtls_noise"
+
+[server.transport.shadowtls_noise]
+# TLS certificate for the server
+# IMPORTANT: Use Let's Encrypt certificate for your domain
+tls_cert = "/etc/letsencrypt/live/your-domain.com/fullchain.pem"
+tls_key = "/etc/letsencrypt/live/your-domain.com/privkey.pem"
+
+# Fallback camouflage domain (for active probing)
+camouflage_domain = "www.microsoft.com"
+
+# Noise protocol configuration  
+noise_pattern = "Noise_NK_25519_ChaChaPoly_BLAKE2s"
+local_private_key = "YOUR_SERVER_PRIVATE_KEY_BASE64"  # From server keygen
+
+[server.services.ssh]
+token = "ssh_service_token"
+bind_addr = "0.0.0.0:2222"  # Expose SSH on port 2222
+type = "tcp"
+
+[server.services.http]
+token = "http_service_token"
+bind_addr = "0.0.0.0:8080"
+type = "tcp"
+
+# ============================================================================
+# ALTERNATIVE: Using Noise_XX Pattern (More Steps = Harder to Fingerprint)
+# ============================================================================
+# [client.transport.shadowtls_noise]
+# camouflage_domain = "www.microsoft.com"
+# noise_pattern = "Noise_XX_25519_ChaChaPoly_BLAKE2s"  # 3-message handshake
+# # No keys needed for XX pattern (mutual authentication during handshake)
+
+# [server.transport.shadowtls_noise]
+# tls_cert = "/path/to/cert.pem"
+# tls_key = "/path/to/key.pem"
+# noise_pattern = "Noise_XX_25519_ChaChaPoly_BLAKE2s"
+
+# ============================================================================
+# RECOMMENDED CAMOUFLAGE DOMAINS FOR IRAN
+# ============================================================================
+# 1. www.microsoft.com  - Most stable, whitelisted
+# 2. www.bing.com       - Microsoft property, good routing
+# 3. dl.google.com      - Google download domain, less scrutiny
+# 4. www.apple.com      - High traffic, good cover
+# 5. www.cloudflare.com - CDN provider, expected to have many connections
+
+# ============================================================================
+# SECURITY NOTES
+# ============================================================================
+# 1. Generate keys with: ./rathole --genkey
+# 2. Keep private keys SECRET - never commit to git
+# 3. Use strong tokens (32+ random characters)
+# 4. Server MUST have valid TLS certificate (use Let's Encrypt)
+# 5. Test with tcpdump to verify traffic looks like HTTPS:
+#    sudo tcpdump -i eth0 -w capture.pcap port 443
+#    # Should show TLS 1.2/1.3 handshake to camouflage domain
