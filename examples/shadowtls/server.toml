@@ -1,0 +1,22 @@
+# ShadowTLS Server Configuration
+# TLS-only transport with fake SNI camouflage (no Noise overhead)
+# Faster than ShadowTLS-Noise, good for DPI evasion where double encryption isn't needed
+
+[server]
+bind_addr = "0.0.0.0:443"  # Use port 443 for maximum stealth
+default_token = "your_secret_token"
+
+[server.transport]
+type = "shadowtls"
+
+[server.transport.shadowtls_noise]  # Uses same config section as shadowtls_noise
+# TLS certificate (use Let's Encrypt for a valid certificate)
+# Get certificate: certbot certonly --standalone -d your-domain.com
+tls_cert = "/etc/letsencrypt/live/your-domain.com/fullchain.pem"
+tls_key = "/etc/letsencrypt/live/your-domain.com/privkey.pem"
+
+# Camouflage domain (should match client)
+camouflage_domain = "www.microsoft.com"
+
+[server.services.my_service]
+bind_addr = "0.0.0.0:8080"  # Port exposed to the internet

@@ -139,6 +139,45 @@ To find out which pattern to use, refer to:
 
 Note that PSKs are not supported currently. Free to open an issue if you need it.
 
+## ShadowTLS (TLS-only)
+
+ShadowTLS is a lightweight transport that provides TLS encryption with SNI camouflage for DPI evasion, without the additional Noise protocol overhead. It's faster than ShadowTLS-Noise but provides only TLS-level encryption.
+
+### When to Use ShadowTLS vs ShadowTLS-Noise
+
+| Feature | ShadowTLS | ShadowTLS-Noise |
+|---------|-----------|-----------------|
+| Speed | Faster | Slower (double encryption) |
+| Encryption | TLS only | TLS + Noise |
+| DPI Evasion | Good (fake SNI) | Good (fake SNI) |
+| Perfect Forward Secrecy | TLS PFS | TLS + Noise PFS |
+| Use Case | General DPI bypass | Maximum security |
+
+### Configuration
+
+#### Client Side
+
+```toml
+[client.transport]
+type = "shadowtls"
+
+[client.transport.shadowtls_noise]
+camouflage_domain = "www.microsoft.com"
+skip_cert_verify = true  # Required for fake camouflage domains
+```
+
+#### Server Side
+
+```toml
+[server.transport]
+type = "shadowtls"
+
+[server.transport.shadowtls_noise]
+tls_cert = "/etc/letsencrypt/live/your-domain.com/fullchain.pem"
+tls_key = "/etc/letsencrypt/live/your-domain.com/privkey.pem"
+camouflage_domain = "www.microsoft.com"
+```
+
 ## ShadowTLS-Noise
 
 ShadowTLS-Noise is a transport layer specifically designed to evade Deep Packet Inspection (DPI) systems used in countries like Iran, China, and Russia. It wraps the Noise protocol inside TLS, making traffic indistinguishable from legitimate HTTPS connections.

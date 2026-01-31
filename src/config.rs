@@ -53,6 +53,8 @@ pub enum TransportType {
     Websocket,
     #[serde(rename = "shadowtls_noise")]
     ShadowTlsNoise,
+    #[serde(rename = "shadowtls")]
+    ShadowTls,
 }
 
 /// Per service config
@@ -378,6 +380,20 @@ impl Config {
                 if is_server {
                     if shadowtls_config.tls_cert.is_none() || shadowtls_config.tls_key.is_none() {
                         bail!("ShadowTLS-Noise server requires `tls_cert` and `tls_key`");
+                    }
+                }
+                Ok(())
+            }
+            TransportType::ShadowTls => {
+                let shadowtls_config = config
+                    .shadowtls_noise
+                    .as_ref()
+                    .ok_or_else(|| anyhow!("Missing shadowtls_noise configuration (used for ShadowTLS)"))?;
+
+                // Server needs TLS cert and key
+                if is_server {
+                    if shadowtls_config.tls_cert.is_none() || shadowtls_config.tls_key.is_none() {
+                        bail!("ShadowTLS server requires `tls_cert` and `tls_key`");
                     }
                 }
                 Ok(())

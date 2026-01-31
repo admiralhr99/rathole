@@ -100,6 +100,11 @@ mod shadowtls_noise;
 #[cfg(feature = "shadowtls-noise")]
 pub use shadowtls_noise::ShadowTlsNoiseTransport;
 
+#[cfg(feature = "shadowtls-noise")]
+mod shadowtls;
+#[cfg(feature = "shadowtls-noise")]
+pub use shadowtls::ShadowTlsTransport;
+
 #[derive(Debug, Clone, Copy)]
 struct Keepalive {
     // tcp_keepalive_time if the underlying protocol is TCP

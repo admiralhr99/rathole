@@ -31,6 +31,8 @@ use crate::transport::TlsTransport;
 use crate::transport::WebsocketTransport;
 #[cfg(feature = "shadowtls-noise")]
 use crate::transport::ShadowTlsNoiseTransport;
+#[cfg(feature = "shadowtls-noise")]
+use crate::transport::ShadowTlsTransport;
 
 type ServiceDigest = protocol::Digest; // SHA256 of a service name
 type Nonce = protocol::Digest; // Also called `session_key`
@@ -89,6 +91,15 @@ pub async fn run_server(
             #[cfg(feature = "shadowtls-noise")]
             {
                 let mut server = Server::<ShadowTlsNoiseTransport>::from(config).await?;
+                server.run(shutdown_rx, update_rx).await?;
+            }
+            #[cfg(not(feature = "shadowtls-noise"))]
+            crate::helper::feature_not_compile("shadowtls-noise")
+        }
+        TransportType::ShadowTls => {
+            #[cfg(feature = "shadowtls-noise")]
+            {
+                let mut server = Server::<ShadowTlsTransport>::from(config).await?;
                 server.run(shutdown_rx, update_rx).await?;
             }
             #[cfg(not(feature = "shadowtls-noise"))]

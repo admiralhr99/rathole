@@ -1,0 +1,21 @@
+# ShadowTLS Client Configuration
+# TLS-only transport with fake SNI camouflage (no Noise overhead)
+# Faster than ShadowTLS-Noise, good for DPI evasion where double encryption isn't needed
+
+[client]
+remote_addr = "your-server.com:443"  # Server address (use port 443 for maximum stealth)
+default_token = "your_secret_token"
+
+[client.transport]
+type = "shadowtls"
+
+[client.transport.shadowtls_noise]  # Uses same config section as shadowtls_noise
+# Domain to camouflage as - DPI sees connection to this domain
+camouflage_domain = "www.microsoft.com"
+
+# Skip certificate verification - REQUIRED for fake camouflage domains
+# Set to true since the server cert won't match www.microsoft.com
+skip_cert_verify = true
+
+[client.services.my_service]
+local_addr = "127.0.0.1:22"  # Local service to expose
