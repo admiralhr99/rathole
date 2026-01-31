@@ -34,6 +34,7 @@ impl Debug for ShadowTlsNoiseTransport {
         f.debug_struct("ShadowTlsNoiseTransport")
             .field("camouflage_domain", &self.config.camouflage_domain)
             .field("noise_pattern", &self.config.noise_pattern)
+            .field("skip_cert_verify", &self.config.skip_cert_verify)
             .finish()
     }
 }
@@ -41,16 +42,73 @@ impl Debug for ShadowTlsNoiseTransport {
 /// ShadowTLS-Noise stream - Noise over TLS over TCP
 pub type ShadowTlsNoiseStream = NoiseStream<TlsStream<TcpStream>>;
 
+/// Dummy certificate verifier that accepts any certificate
+#[derive(Debug)]
+struct NoVerifier;
+
+impl tokio_rustls::rustls::client::danger::ServerCertVerifier for NoVerifier {
+    fn verify_server_cert(
+        &self,
+        _end_entity: &tokio_rustls::rustls::pki_types::CertificateDer<'_>,
+        _intermediates: &[tokio_rustls::rustls::pki_types::CertificateDer<'_>],
+        _server_name: &ServerName<'_>,
+        _ocsp_response: &[u8],
+        _now: tokio_rustls::rustls::pki_types::UnixTime,
+    ) -> Result<tokio_rustls::rustls::client::danger::ServerCertVerified, tokio_rustls::rustls::Error> {
+        Ok(tokio_rustls::rustls::client::danger::ServerCertVerified::assertion())
+    }
+
+    fn verify_tls12_signature(
+        &self,
+        _message: &[u8],
+        _cert: &tokio_rustls::rustls::pki_types::CertificateDer<'_>,
+        _dss: &tokio_rustls::rustls::DigitallySignedStruct,
+    ) -> Result<tokio_rustls::rustls::client::danger::HandshakeSignatureValid, tokio_rustls::rustls::Error> {
+        Ok(tokio_rustls::rustls::client::danger::HandshakeSignatureValid::assertion())
+    }
+
+    fn verify_tls13_signature(
+        &self,
+        _message: &[u8],
+        _cert: &tokio_rustls::rustls::pki_types::CertificateDer<'_>,
+        _dss: &tokio_rustls::rustls::DigitallySignedStruct,
+    ) -> Result<tokio_rustls::rustls::client::danger::HandshakeSignatureValid, tokio_rustls::rustls::Error> {
+        Ok(tokio_rustls::rustls::client::danger::HandshakeSignatureValid::assertion())
+    }
+
+    fn supported_verify_schemes(&self) -> Vec<tokio_rustls::rustls::SignatureScheme> {
+        vec![
+            tokio_rustls::rustls::SignatureScheme::RSA_PKCS1_SHA256,
+            tokio_rustls::rustls::SignatureScheme::RSA_PKCS1_SHA384,
+            tokio_rustls::rustls::SignatureScheme::RSA_PKCS1_SHA512,
+            tokio_rustls::rustls::SignatureScheme::ECDSA_NISTP256_SHA256,
+            tokio_rustls::rustls::SignatureScheme::ECDSA_NISTP384_SHA384,
+            tokio_rustls::rustls::SignatureScheme::ECDSA_NISTP521_SHA512,
+            tokio_rustls::rustls::SignatureScheme::RSA_PSS_SHA256,
+            tokio_rustls::rustls::SignatureScheme::RSA_PSS_SHA384,
+            tokio_rustls::rustls::SignatureScheme::RSA_PSS_SHA512,
+            tokio_rustls::rustls::SignatureScheme::ED25519,
+        ]
+    }
+}
+
 impl ShadowTlsNoiseTransport {
-    fn build_tls_client_config() -> Result<TlsConnector> {
-        let mut root_store = RootCertStore::empty();
+    fn build_tls_client_config(skip_cert_verify: bool) -> Result<TlsConnector> {
+        let config = if skip_cert_verify {
+            // Skip certificate verification - allows using fake camouflage domains
+            ClientConfig::builder()
+                .dangerous()
+                .with_custom_certificate_verifier(Arc::new(NoVerifier))
+                .with_no_client_auth()
+        } else {
+            // Normal certificate verification
+            let mut root_store = RootCertStore::empty();
+            root_store.extend(webpki_roots::TLS_SERVER_ROOTS.iter().cloned());
 
-        // Add webpki root certificates
-        root_store.extend(webpki_roots::TLS_SERVER_ROOTS.iter().cloned());
-
-        let config = ClientConfig::builder()
-            .with_root_certificates(root_store)
-            .with_no_client_auth();
+            ClientConfig::builder()
+                .with_root_certificates(root_store)
+                .with_no_client_auth()
+        };
 
         Ok(TlsConnector::from(Arc::new(config)))
     }
@@ -104,7 +162,7 @@ impl Transport for ShadowTlsNoiseTransport {
         };
 
         // Build TLS client connector
-        let tls_connector = Self::build_tls_client_config().ok();
+        let tls_connector = Self::build_tls_client_config(shadowtls_config.skip_cert_verify).ok();
 
         // Build TLS server acceptor if certificate is provided
         let tls_acceptor = if let (Some(cert_path), Some(key_path)) = (

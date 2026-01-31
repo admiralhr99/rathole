@@ -153,6 +153,10 @@ fn default_camouflage_domain() -> String {
     String::from("www.microsoft.com")
 }
 
+fn default_skip_cert_verify() -> bool {
+    false
+}
+
 /// ShadowTLS-Noise configuration
 /// Wraps Noise protocol inside TLS for DPI evasion
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
@@ -161,6 +165,10 @@ pub struct ShadowTlsNoiseConfig {
     /// Domain to camouflage as (e.g., "www.microsoft.com")
     #[serde(default = "default_camouflage_domain")]
     pub camouflage_domain: String,
+
+    /// Skip TLS certificate verification (required for fake camouflage domains)
+    #[serde(default = "default_skip_cert_verify")]
+    pub skip_cert_verify: bool,
 
     /// TLS certificate path (server only, PEM format)
     pub tls_cert: Option<String>,
